@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Part of It Counter</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="hero">
+    <p class="label">Today the professor has said <q>part of it</q></p>
+    <p class="total"><span id="mode">0</span> <span class="times">times</span></p>
+    <p class="meta">Mode of <span id="students">0</span> students' counts · <span id="date"></span></p>
+  </header>
+
+  <main>
+    <!-- Sign-in -->
+    <section id="login-view" class="card" hidden>
+      <h2>Sign in to start counting</h2>
+      <form id="login-form">
+        <label for="email">School email</label>
+        <input id="email" type="email" required autocomplete="email" placeholder="you@university.edu" />
+        <button type="submit" class="primary">Enter</button>
+        <p id="login-error" class="error" role="alert"></p>
+      </form>
+    </section>
+
+    <!-- Counter -->
+    <section id="counter-view" class="card" hidden>
+      <p class="who">Signed in as <strong id="who"></strong> · <button id="logout" class="link">Sign out</button></p>
+      <button id="inc" class="big" aria-label="He said part of it">
+        <span>He said it!</span>
+        <small>+1</small>
+      </button>
+      <p class="mine">Your count today: <strong id="mine">0</strong></p>
+      <button id="dec" class="link">Oops, undo one</button>
+    </section>
+
+    <section id="history-view" class="card" hidden>
+      <h2>Past lectures</h2>
+      <table>
+        <thead><tr><th>Date</th><th>Count (mode)</th><th>Students</th></tr></thead>
+        <tbody id="history"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
