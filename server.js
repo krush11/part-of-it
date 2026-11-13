@@ -6,7 +6,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { createPool, createStore } = require('./db');
+const { createStore, DatabaseError, SUPABASE_URL } = require('./db');
 
 const PORT = Number(process.env.PORT) || 3000;
 const TIMEZONE = process.env.TIMEZONE || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -18,7 +18,7 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 const COOKIE = 'poi_session';
 
 // ---------- storage ----------
-const store = createStore(createPool(process.env.DATABASE_URL));
+const store = createStore();
 
 function today() {
   // en-CA formats as YYYY-MM-DD
@@ -118,8 +118,7 @@ async function state(email) {
   const day = today();
   let myCount = 0;
   if (email) {
-    await store.join(email, day);
-    myCount = await store.myCount(email, day);
+    myCount = await store.join(email, day);
   }
   const rows = await classStats(day);
   const todayRow = rows.find((r) => r.date === day);
@@ -197,9 +196,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET') return serveStatic(req, res);
     res.writeHead(405).end();
   } catch (err) {
-    if (err.code || err.errno) {
-      // database / network error
-      console.error(err);
+    if (err instanceof DatabaseError) {
+      // Supabase or network error
+      console.error(err.message);
       return sendJSON(res, 503, { error: 'Database unavailable, try again in a moment.' });
     }
     sendJSON(res, 400, { error: err.message });
@@ -210,10 +209,10 @@ store
   .init()
   .then(() => {
     server.listen(PORT, () => {
-      console.log(`Part-of-it counter running on port ${PORT} (timezone: ${TIMEZONE})`);
+      console.log(`Part-of-it counter running on port ${PORT} (timezone: ${TIMEZONE}, db: ${SUPABASE_URL})`);
     });
   })
   .catch((err) => {
-    console.error('Could not connect to the database:', err.message);
+    console.error('Could not reach Supabase:', err.message);
     process.exit(1);
   });

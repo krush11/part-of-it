@@ -1,96 +1,59 @@
-// Supabase (Postgres) storage. One row per student per lecture day.
-const { Pool } = require('pg');
+// Supabase storage. One row per student per lecture day, reached only through
+// the functions defined in supabase/schema.sql.
+const { createClient } = require('@supabase/supabase-js');
 
-const SCHEMA = `
-create table if not exists part_of_it_counts (
-  email      text        not null,
-  day        date        not null,
-  count      integer     not null default 0 check (count >= 0),
-  updated_at timestamptz not null default now(),
-  primary key (email, day)
-);
--- Keep the table private from Supabase's public REST API (anon key).
--- The server connects as the table owner, which bypasses RLS.
-alter table part_of_it_counts enable row level security;
-`;
+// The publishable key is meant to be public (it's what browsers use), so it's
+// safe to keep in the code. Access is limited by supabase/schema.sql.
+const SUPABASE_PROJECT_ID = 'tbjzjyqyepobswuxmzbk';
+const SUPABASE_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co`;
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_iQIxBjIRQLbRvRe5i4zGHg_GQKreVZf';
 
-function createPool(connectionString) {
-  if (!connectionString) {
-    throw new Error('DATABASE_URL is not set. Use the connection string from Supabase → Connect.');
-  }
-  const url = new URL(connectionString);
-  const local = ['localhost', '127.0.0.1', '::1'].includes(url.hostname) || url.hostname.startsWith('/');
-  // Supabase's certificate isn't in Node's default trust store, so we encrypt
-  // without verifying the chain. Drop sslmode so pg doesn't override this.
-  url.searchParams.delete('sslmode');
-  return new Pool({
-    connectionString: url.toString(),
-    ssl: local ? false : { rejectUnauthorized: false },
-    max: Number(process.env.DB_POOL_SIZE) || 5,
+function createSupabase(url = SUPABASE_URL, key = SUPABASE_PUBLISHABLE_KEY) {
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 
-function createStore(pool) {
-  return {
-    pool,
+class DatabaseError extends Error {}
 
+function createStore(supabase = createSupabase()) {
+  async function rpc(fn, args) {
+    const { data, error } = await supabase.rpc(fn, args);
+    if (error) {
+      const hint =
+        error.code === 'PGRST202' || /does not exist|schema cache/i.test(error.message)
+          ? ' (run supabase/schema.sql in the Supabase SQL Editor)'
+          : '';
+      throw new DatabaseError(`${fn}: ${error.message}${hint}`);
+    }
+    return data;
+  }
+
+  return {
+    // Fails fast at startup if the project is unreachable or the SQL hasn't been run.
     async init() {
-      await pool.query(SCHEMA);
+      await rpc('poi_daily_modes', { p_up_to: '2000-01-01', p_limit: 1 });
     },
 
     // Make sure the student has a row for today (count 0) so they're
-    // included in the class mode as soon as they join.
+    // included in the class mode as soon as they join. Returns their count.
     async join(email, day) {
-      await pool.query(
-        `insert into part_of_it_counts (email, day) values ($1, $2)
-         on conflict (email, day) do nothing`,
-        [email, day]
-      );
+      return (await rpc('poi_join', { p_email: email, p_day: day })) ?? 0;
     },
 
     async increment(email, day) {
-      await pool.query(
-        `insert into part_of_it_counts (email, day, count) values ($1, $2, 1)
-         on conflict (email, day)
-         do update set count = part_of_it_counts.count + 1, updated_at = now()`,
-        [email, day]
-      );
+      return rpc('poi_increment', { p_email: email, p_day: day });
     },
 
     async decrement(email, day) {
-      await pool.query(
-        `update part_of_it_counts
-            set count = greatest(count - 1, 0), updated_at = now()
-          where email = $1 and day = $2`,
-        [email, day]
-      );
+      return rpc('poi_decrement', { p_email: email, p_day: day });
     },
 
-    async myCount(email, day) {
-      const { rows } = await pool.query(
-        'select count from part_of_it_counts where email = $1 and day = $2',
-        [email, day]
-      );
-      return rows[0] ? rows[0].count : 0;
-    },
-
-    // Mode per day. Ordering by count desc makes mode() pick the highest
-    // value on a tie (late joiners tend to have lower counts).
+    // [{ date: 'YYYY-MM-DD', mode, students }], newest first.
     async dailyModes(upToDay, limit = 31) {
-      const { rows } = await pool.query(
-        `select to_char(day, 'YYYY-MM-DD') as date,
-                mode() within group (order by count desc) as mode,
-                count(*)::int as students
-           from part_of_it_counts
-          where day <= $1
-          group by day
-          order by day desc
-          limit $2`,
-        [upToDay, limit]
-      );
-      return rows;
+      return (await rpc('poi_daily_modes', { p_up_to: upToDay, p_limit: limit })) || [];
     },
   };
 }
 
-module.exports = { createPool, createStore };
+module.exports = { createSupabase, createStore, DatabaseError, SUPABASE_URL };

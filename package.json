@@ -12,6 +12,9 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@supabase/supabase-js": "2.119.0"
+  },
+  "devDependencies": {
     "pg": "8.23.1"
   }
 }
