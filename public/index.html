@@ -3,54 +3,47 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Part of It Counter</title>
+  <title>Part of It</title>
+  <meta name="description" content="A crowd-sourced counter for a certain professor's favourite three words." />
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
-  <header class="hero">
-    <p class="label">Today the professor has said <q>part of it</q></p>
-    <p class="total"><span id="mode">0</span> <span class="times">times</span></p>
-    <p class="meta">Mode of <span id="students">0</span> students' counts · <span id="date"></span></p>
-  </header>
+<body class="intro">
+  <main class="intro-wrap">
+    <p class="kicker">XLRI · Managerial Ethics · Section of questionable priorities</p>
+    <h1 class="mega">Welcome to the<br /><span class="pop">Part‑of‑It‑Verse</span></h1>
 
-  <main>
-    <!-- Sign-in -->
-    <section id="login-view" class="card" hidden>
-      <h2>Sign in to start counting</h2>
-      <form id="login-form">
-        <label for="email">School email</label>
-        <input id="email" type="email" required autocomplete="email" placeholder="you@university.edu" />
-        <button type="submit" class="primary">Enter</button>
-        <p id="login-error" class="error" role="alert"></p>
-      </form>
+    <figure class="polaroid">
+      <img src="img/prof.webp" alt="Vintage recruitment poster: a certain Managerial Ethics professor pointing at you. I want you to be part of it." onerror="this.onerror=null;this.src='img/prof-placeholder.svg'" />
+      <figcaption>Official recruitment material. He did not approve this.</figcaption>
+    </figure>
+
+    <section class="card story">
+      <p>A certain Managerial Ethics professor has a catchphrase. It is not a filler word. It is not a verbal tic. It is a <em>way of life</em>.</p>
+      <p>Utilitarianism? <strong>Part of it.</strong> Stakeholder theory? <strong>Part of it.</strong> The reason you are reading this instead of the pre‑read? Also, somehow, <strong>part of it</strong>.</p>
+      <p>This website exists because one of us tried to count by hand and lost track somewhere around the Kantian slide. Science demands a better instrument. <em>This is that instrument.</em></p>
     </section>
 
-    <!-- Counter -->
-    <section id="counter-view" class="card" hidden>
-      <p class="who">Signed in as <strong id="who"></strong> · <button id="logout" class="link">Sign out</button></p>
-      <button id="inc" class="big" aria-label="He said part of it">
-        <span>He said it!</span>
-        <small>+1</small>
-      </button>
-      <p class="mine">Your count today: <strong id="mine">0</strong></p>
-      <button id="dec" class="link">Oops, undo one</button>
+    <section class="card how">
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li><span class="emoji">🔊</span><div><strong>He says it. You tap.</strong><br />That is the whole job. No counting, no remembering, no spreadsheet.</div></li>
+        <li><span class="emoji">🧠</span><div><strong>The class decides, not you.</strong><br />A "part of it" only counts when enough of you tap at the same moment. One person mashing is a cry for attention, not a data point.</div></li>
+        <li><span class="emoji">🏆</span><div><strong>Earn a title.</strong><br />Bat Ears. Back Bencher. Trigger Happy. Your ears, ranked, privately. Nobody else sees your name.</div></li>
+      </ol>
     </section>
 
-    <section id="dist-view" class="card" hidden>
-      <h2>Today's distribution</h2>
-      <p class="hint">Each count and who has it. The most common count is the class total.</p>
-      <ol id="dist" class="dist"></ol>
-    </section>
-
-    <section id="history-view" class="card" hidden>
-      <h2>Past lectures</h2>
-      <table>
-        <thead><tr><th>Date</th><th>Count (mode)</th><th>Students</th></tr></thead>
-        <tbody id="history"></tbody>
-      </table>
-    </section>
+    <a id="go" class="cta" href="/count">I'm part of it →</a>
+    <p class="fineprint">Sign in once with your roll number. That's the only typing you'll ever do here.</p>
   </main>
 
-  <script src="app.js"></script>
+  <script>
+    // Already signed in? Say so on the button.
+    fetch('/api/state', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => {
+        if (s && s.roll) document.getElementById('go').textContent = `Continue as ${s.roll} →`;
+      })
+      .catch(() => {});
+  </script>
 </body>
 </html>

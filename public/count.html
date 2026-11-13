@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Part of It · Counter</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="hero">
+    <p class="date">📅 <span id="date">today</span></p>
+    <p class="label">times he's said it today</p>
+    <p class="total"><span id="count">0</span></p>
+    <p id="pending" class="pending" hidden></p>
+    <p class="meta"><span id="students">0</span> ears listening · <span id="events">0</span> confirmed</p>
+  </header>
+
+  <main>
+    <!-- Sign-in: just the roll number, signs in by itself when valid -->
+    <section id="login-view" class="card" hidden>
+      <h2>Who dis? 👀</h2>
+      <label class="roll" for="roll">
+        <input id="roll" type="text" inputmode="text" autocapitalize="none" autocomplete="off" spellcheck="false" maxlength="7" value="b" aria-label="Roll number" />
+        <span class="domain">@astra.xlri.ac.in</span>
+        <span id="roll-status" class="status" aria-live="polite">🤔</span>
+      </label>
+      <p id="login-error" class="error" role="alert"></p>
+      <p class="hint">Just your roll number. No passwords, we're not a bank.</p>
+    </section>
+
+    <!-- Counter -->
+    <section id="counter-view" hidden>
+      <p class="who">You're <strong id="who"></strong> · <button id="logout" class="link">not you? 🔁</button></p>
+
+      <button id="tap" class="big" aria-label="He said part of it">
+        <span class="big-text">HE SAID IT!</span>
+        <small id="tap-sub">tap the moment you hear it</small>
+      </button>
+      <button id="untap" class="link oops" hidden>oops, that wasn't it 🙈</button>
+
+      <section class="card ears">
+        <h2 id="title">👂 Fresh Ears</h2>
+        <p class="stats"><strong id="my-taps">0</strong> taps · <strong id="my-hits">0</strong> confirmed · <strong id="my-acc">–</strong> accuracy</p>
+        <p class="hint" id="ears-hint">Tap when he says it. Be part of it.</p>
+      </section>
+    </section>
+
+    <section id="feed-view" class="card" hidden>
+      <h2>📡 Live feed</h2>
+      <ol id="feed" class="feed"></ol>
+    </section>
+
+    <section id="history-view" class="card" hidden>
+      <h2>🗓️ Past lectures</h2>
+      <table>
+        <thead><tr><th>Date</th><th>Count</th><th>Ears</th></tr></thead>
+        <tbody id="history"></tbody>
+      </table>
+    </section>
+
+    <p class="fineprint"><a href="/">What is this? ←</a></p>
+  </main>
+
+  <script src="count.js"></script>
+</body>
+</html>

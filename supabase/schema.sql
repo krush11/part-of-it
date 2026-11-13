@@ -1,11 +1,163 @@
 -- Part of It Counter: run this once in Supabase → SQL Editor → New query.
 -- Safe to re-run.
 --
--- The app talks to Supabase with the public (publishable) key, so the table
--- itself is locked away from that key. Students can only go through the
--- functions below, which can add or remove one tap for an email and read the
--- class totals and today's distribution (which lists who has which count).
--- They can't set arbitrary counts or read past days' emails.
+-- The app talks to Supabase with the public (publishable) key, so the tables
+-- are locked away from that key. Everything goes through the functions below:
+-- record one tap (for today only), undo your own last tap, and read anonymous
+-- tap timings. No email ever leaves the database.
+
+-- ============================================================================
+-- Taps: one row per tap. The server turns these into the class count by
+-- looking for moments when many different devices tapped together
+-- (see lib/consensus.js).
+-- ============================================================================
+
+create table if not exists public.poi_taps (
+  id      bigserial   primary key,
+  -- XLRI roll email: b26032, bi26002, bl26012 … @astra.xlri.ac.in
+  email   text        not null
+          check (email = lower(email)
+                 and email ~ '^b[il]?260(0[1-9]|[1-5][0-9]|60)@astra\.xlri\.ac\.in$'),
+  day     date        not null,
+  -- sha256 (hex) of the browser's device cookie; lets us count distinct devices
+  device  text        not null check (char_length(device) between 16 and 128),
+  at      timestamptz not null default now()
+);
+
+create index if not exists poi_taps_day_at       on public.poi_taps (day, at);
+create index if not exists poi_taps_email_day_at on public.poi_taps (email, day, at);
+
+alter table public.poi_taps enable row level security;
+revoke all on table public.poi_taps from anon, authenticated;
+revoke all on sequence public.poi_taps_id_seq from anon, authenticated;
+
+-- Only allow writes for "today", give or take a day for time zones.
+create or replace function public.poi_assert_today(p_day date)
+returns void
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if p_day is null or p_day < current_date - 1 or p_day > current_date + 1 then
+    raise exception 'day must be today';
+  end if;
+end;
+$$;
+
+-- Record one tap. Returns false (and stores nothing) when it's a double tap
+-- (within 600 ms of the student's own previous tap) or the student has hit
+-- the daily cap. p_at may be up to 5 s in the past (network delay); anything
+-- else is clamped to now.
+create or replace function public.poi_tap(p_email text, p_day date, p_device text, p_at timestamptz)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_email text := lower(trim(p_email));
+  v_at timestamptz := least(greatest(coalesce(p_at, now()), now() - interval '5 seconds'), now());
+begin
+  perform public.poi_assert_today(p_day);
+  if exists (
+    select 1 from public.poi_taps t
+     where t.email = v_email and t.day = p_day
+       and t.at between v_at - interval '600 milliseconds' and v_at + interval '600 milliseconds'
+  ) then
+    return false;
+  end if;
+  if (select count(*) from public.poi_taps t where t.email = v_email and t.day = p_day) >= 400 then
+    return false;
+  end if;
+  insert into public.poi_taps (email, day, device, at) values (v_email, p_day, p_device, v_at);
+  return true;
+end;
+$$;
+
+-- Undo: delete the student's newest tap if it's less than 15 s old.
+create or replace function public.poi_untap(p_email text, p_day date)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_email text := lower(trim(p_email));
+begin
+  perform public.poi_assert_today(p_day);
+  delete from public.poi_taps t
+   where t.id = (
+     select x.id from public.poi_taps x
+      where x.email = v_email and x.day = p_day
+      order by x.at desc, x.id desc
+      limit 1
+   )
+   and t.at > now() - interval '15 seconds';
+  return found;
+end;
+$$;
+
+-- All taps of one day, anonymised: [[student, device, at_ms], ...] in time
+-- order. "student" is the id of that email's first tap of the day, and
+-- "device" the id of that device's first tap, so the numbers are stable all
+-- day and reveal nothing. Returned as one JSON value so the result isn't
+-- subject to the API's row limit.
+create or replace function public.poi_taps_for_day(p_day date)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_array(s.sid, d.did, (extract(epoch from t.at) * 1000)::bigint)
+      order by t.at, t.id
+    ),
+    '[]'::jsonb
+  )
+  from public.poi_taps t
+  join (select email,  min(id) as sid from public.poi_taps where day = p_day group by email)  s on s.email  = t.email
+  join (select device, min(id) as did from public.poi_taps where day = p_day group by device) d on d.device = t.device
+  where t.day = p_day;
+$$;
+
+-- The caller's own anonymous id for a day (null if they haven't tapped yet).
+create or replace function public.poi_my_id(p_email text, p_day date)
+returns bigint
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select min(t.id) from public.poi_taps t
+   where t.email = lower(trim(p_email)) and t.day = p_day;
+$$;
+
+-- Days before p_before that have taps, newest first: ["2026-11-13", ...]
+create or replace function public.poi_tap_days(p_before date, p_limit integer default 14)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(x.d order by x.d desc), '[]'::jsonb)
+  from (
+    select to_char(t.day, 'YYYY-MM-DD') as d
+      from public.poi_taps t
+     where t.day < p_before
+     group by t.day
+     order by t.day desc
+     limit least(greatest(coalesce(p_limit, 14), 1), 60)
+  ) x;
+$$;
+
+-- ============================================================================
+-- Legacy: before the tap-based counter, each student kept their own count and
+-- the class number was the mode. The table is kept so old days still show in
+-- history; nothing writes to it any more.
+-- ============================================================================
 
 create table if not exists public.part_of_it_counts (
   email      text        not null
@@ -21,77 +173,6 @@ create table if not exists public.part_of_it_counts (
 alter table public.part_of_it_counts enable row level security;
 revoke all on table public.part_of_it_counts from anon, authenticated;
 
--- Only allow writes for "today", give or take a day for time zones.
-create or replace function public.poi_assert_today(p_day date)
-returns void
-language plpgsql
-set search_path = ''
-as $$
-begin
-  if p_day is null or p_day < current_date - 1 or p_day > current_date + 1 then
-    raise exception 'day must be today';
-  end if;
-end;
-$$;
-
-create or replace function public.poi_join(p_email text, p_day date)
-returns integer
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare
-  result integer;
-begin
-  perform public.poi_assert_today(p_day);
-  insert into public.part_of_it_counts (email, day)
-  values (lower(trim(p_email)), p_day)
-  on conflict (email, day) do nothing;
-  select c.count into result from public.part_of_it_counts c
-   where c.email = lower(trim(p_email)) and c.day = p_day;
-  return result;
-end;
-$$;
-
-create or replace function public.poi_increment(p_email text, p_day date)
-returns integer
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare
-  result integer;
-begin
-  perform public.poi_assert_today(p_day);
-  insert into public.part_of_it_counts as c (email, day, count)
-  values (lower(trim(p_email)), p_day, 1)
-  on conflict (email, day)
-  do update set count = c.count + 1, updated_at = now()
-  returning c.count into result;
-  return result;
-end;
-$$;
-
-create or replace function public.poi_decrement(p_email text, p_day date)
-returns integer
-language plpgsql
-security definer
-set search_path = ''
-as $$
-declare
-  result integer;
-begin
-  perform public.poi_assert_today(p_day);
-  update public.part_of_it_counts c
-     set count = greatest(c.count - 1, 0), updated_at = now()
-   where c.email = lower(trim(p_email)) and c.day = p_day
-  returning c.count into result;
-  return coalesce(result, 0);
-end;
-$$;
-
--- Class total per day = the mode of everyone's counts. Ordering by count desc
--- makes mode() pick the highest value on a tie (late joiners count lower).
 create or replace function public.poi_daily_modes(p_up_to date, p_limit integer default 31)
 returns table (date text, mode integer, students integer)
 language sql
@@ -109,37 +190,28 @@ as $$
    limit least(greatest(coalesce(p_limit, 31), 1), 60);
 $$;
 
--- Today's distribution: each count, how many students have it, and their emails.
--- Only today (give or take a day for time zones), so past days' emails stay private.
-create or replace function public.poi_distribution(p_day date)
-returns table (count integer, students integer, emails text[])
-language plpgsql
-stable
-security definer
-set search_path = ''
-as $$
-#variable_conflict use_column
-begin
-  perform public.poi_assert_today(p_day);
-  return query
-  select c.count,
-         count(*)::integer,
-         array_agg(c.email order by c.email)
-    from public.part_of_it_counts c
-   where c.day = p_day
-   group by c.count
-   order by c.count desc;
-end;
-$$;
+-- Old write/read functions are gone: the table is read-only history now.
+drop function if exists public.poi_join(text, date);
+drop function if exists public.poi_increment(text, date);
+drop function if exists public.poi_decrement(text, date);
+drop function if exists public.poi_distribution(date);
+
+-- ============================================================================
+-- Permissions
+-- ============================================================================
 
 revoke execute on function public.poi_assert_today(date) from public, anon, authenticated;
-revoke execute on function public.poi_join(text, date) from public;
-revoke execute on function public.poi_increment(text, date) from public;
-revoke execute on function public.poi_decrement(text, date) from public;
+
+revoke execute on function public.poi_tap(text, date, text, timestamptz) from public;
+revoke execute on function public.poi_untap(text, date) from public;
+revoke execute on function public.poi_taps_for_day(date) from public;
+revoke execute on function public.poi_my_id(text, date) from public;
+revoke execute on function public.poi_tap_days(date, integer) from public;
 revoke execute on function public.poi_daily_modes(date, integer) from public;
-grant execute on function public.poi_join(text, date) to anon, authenticated;
-grant execute on function public.poi_increment(text, date) to anon, authenticated;
-grant execute on function public.poi_decrement(text, date) to anon, authenticated;
+
+grant execute on function public.poi_tap(text, date, text, timestamptz) to anon, authenticated;
+grant execute on function public.poi_untap(text, date) to anon, authenticated;
+grant execute on function public.poi_taps_for_day(date) to anon, authenticated;
+grant execute on function public.poi_my_id(text, date) to anon, authenticated;
+grant execute on function public.poi_tap_days(date, integer) to anon, authenticated;
 grant execute on function public.poi_daily_modes(date, integer) to anon, authenticated;
-revoke execute on function public.poi_distribution(date) from public;
-grant execute on function public.poi_distribution(date) to anon, authenticated;

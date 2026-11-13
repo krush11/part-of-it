@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect width="400" height="400" fill="#ffd60a"/>
+  <circle cx="200" cy="150" r="70" fill="#fff" stroke="#16161d" stroke-width="6"/>
+  <path d="M90 360c0-70 50-110 110-110s110 40 110 110" fill="#fff" stroke="#16161d" stroke-width="6"/>
+  <circle cx="175" cy="140" r="7" fill="#16161d"/>
+  <circle cx="225" cy="140" r="7" fill="#16161d"/>
+  <path d="M170 180q30 20 60 0" fill="none" stroke="#16161d" stroke-width="6" stroke-linecap="round"/>
+  <g transform="rotate(-6 200 60)">
+    <rect x="60" y="30" width="280" height="56" rx="12" fill="#ff3e7f" stroke="#16161d" stroke-width="6"/>
+    <text x="200" y="70" font-family="Impact, Arial Black, sans-serif" font-size="36" fill="#fff" text-anchor="middle" stroke="#16161d" stroke-width="1.5">PART OF IT</text>
+  </g>
+  <text x="200" y="385" font-family="system-ui, sans-serif" font-size="16" fill="#16161d" text-anchor="middle">drop the real photo at public/img/prof.jpg</text>
+</svg>

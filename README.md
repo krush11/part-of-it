@@ -1,61 +1,75 @@
-# Part of It Counter
+# Part of It
 
-Our professor says "part of it" a lot. This app lets the class keep count.
+A certain Managerial Ethics professor has a catchphrase. This site lets the class count it, together, without anyone having to keep count.
 
-- Students sign in with just their email. There's no password.
-- Each student taps **He said it!** every time they hear the phrase. Each student has their own count.
-- The big number at the top is the **mode** of all students' counts for today, meaning the count the most students agree on. If there's a tie, the higher value wins, because students who show up late usually have lower counts.
-- Below the counter, **today's distribution** lists every count, how many students have it, and their emails.
-- Counts start over each day (one lecture = one day). Totals from past lectures show up in a history table.
-- The page updates every 3 seconds, so everyone sees the class total change live.
+- **Intro page** (`/`): what this is, with the prof's photo. The poster lives at `public/img/prof.webp`.
+- **Counter** (`/count`): one big button, **HE SAID IT!** Tap it whenever you hear the phrase.
+- **Sign-in** is just your roll number (`b26032`, `bi26002`, `bl26012` …, rolls 01–60). The `@astra.xlri.ac.in` is filled in for you and you're signed in the moment the roll is valid. Once per semester.
+- The big number is **how many times the class agrees he said it today**. It only goes up when enough different phones tap at about the same moment.
+- You get a private **ears rating** (🦇 Bat Ears, 😴 Back Bencher, 🔫 Trigger Happy…) and there's an anonymous live feed and a history of past lectures. Nobody's roll number is shown to anyone.
 
-It runs on **Vercel**. Counts are saved in **Supabase** (project `tbjzjyqyepobswuxmzbk`) in a table called `part_of_it_counts`, with one row per student per day. The project URL and the publishable key are written directly in `lib/db.js`. The publishable key is designed to be public, so that's safe.
+## How the counting works
 
-## Project layout
+Each tap is a *vote that he just said it*, not a running total. The server re-scores the whole day from the tap log every time ([`lib/consensus.js`](lib/consensus.js)):
+
+1. **Debounce.** Taps from the same student under 600 ms apart are one tap.
+2. **Cluster.** Taps are grouped when they land within 3 s of each other (people need 0.5–4 s to hear it, reach for the phone and tap). Clusters longer than 10 s are split at their quietest point.
+3. **Quorum.** A cluster counts only if it has enough **distinct devices**: 20% of the devices active in the last 10 minutes, at least 3 and at most 6. Ten tabs on one phone are one device.
+4. **Reliability.** Each student gets a weight from how often their taps land in confirmed clusters (a one-coin Dawid–Skene model). Students with low weight, or tapping far more than everyone else, can't start or extend a cluster, so a spammer can't glue real clusters together or inflate anything. The cluster also needs enough total weight.
+5. **Repeats.** If most people in a cluster tapped twice, "part of it, part of it" counts as 2 (median of taps per student, capped at 3).
+
+What this gives you:
+
+| Problem | Result |
+|---|---|
+| Someone taps 50 times for fun | +0. Alone they never reach the quorum; mashing is debounced; their weight drops. |
+| You miss a few taps | Nothing. The count doesn't depend on your total. |
+| You lose track | There's nothing to track. Just tap when you hear it. |
+| Only 5 students paying attention | Quorum drops to 3. |
+| He says it twice in a row | Counted as 2. |
+
+Known limits: sign-in has no password, so a determined person with several incognito windows can still fake a crowd. This stops casual pranks, not an adversary. An undo within 15 s can briefly drop the count by one.
+
+## Where things live
+
+It runs on **Vercel**. Taps are stored in **Supabase** (project `tbjzjyqyepobswuxmzbk`), table `poi_taps`, one row per tap. The project URL and publishable key are in `lib/db.js`; the publishable key is meant to be public.
 
 ```
-public/           the web page (served as static files)
-api/              one Vercel serverless function per endpoint
-  state.js          GET  current counts
-  login.js          POST {email}
-  logout.js         POST
-  increment.js      POST +1 for the signed-in student
-  decrement.js      POST undo one
-lib/app.js        shared request handling used by every api/ file
-lib/db.js         Supabase connection (project URL + publishable key)
-supabase/schema.sql   database setup, run once in Supabase
-dev-server.js     runs the same thing locally without Vercel
-vercel.json       Vercel config
+public/               the web pages (static)
+  index.html            intro page
+  count.html, count.js  the counter
+  style.css             meme theme
+  img/prof.webp         the prof, as a recruitment poster
+api/                  one Vercel function per endpoint
+  state.js              GET  everything the page shows
+  login.js              POST {roll}
+  logout.js             POST
+  tap.js                POST {ageMs}   "he said it"
+  untap.js              POST           undo my last tap (15 s window)
+lib/app.js            request handling shared by every api/ file
+lib/consensus.js      the counting algorithm (pure, tested)
+lib/db.js             Supabase access (+ an in-memory stand-in for local dev)
+supabase/schema.sql   database setup; run once in Supabase
+dev-server.js         runs it locally without Vercel
 ```
 
-## 1. Set up Supabase (one time)
+## Set up Supabase (one time, and again after schema changes)
 
-Open the Supabase dashboard and go to **SQL Editor → New query**. Paste in the contents of [`supabase/schema.sql`](supabase/schema.sql) and click **Run**. Running it again later does no harm.
+Supabase dashboard → **SQL Editor → New query**, paste [`supabase/schema.sql`](supabase/schema.sql), **Run**. Safe to re-run.
 
-This creates the table and five small functions. The app uses only those functions, so the public key can't change counts directly. It can only add or undo one tap for an email, and only for today. It can also read today's distribution, which includes students' emails, because the page shows that to everyone. Students' counts appear in **Table Editor → part_of_it_counts**.
+The app only ever calls the functions this creates. With the public key you can record one tap for today, undo your own last tap, and read *anonymous* tap timings. You can't read emails, write other days, or set counts. The roll-number rule is enforced by the database too.
 
-## 2. Deploy to Vercel
+## Deploy to Vercel
 
-**From the dashboard:** go to [vercel.com/new](https://vercel.com/new), import this GitHub repository, leave the framework preset as **Other** with no build command, and click **Deploy**.
+Import the GitHub repository at [vercel.com/new](https://vercel.com/new) (framework **Other**, no build command) and deploy. Every push to `master` redeploys. Or: `npm i -g vercel && vercel --prod`.
 
-**Or from the command line:**
+Nothing needs configuring in Vercel. Settings live in code:
 
-```bash
-npm i -g vercel
-vercel --prod
-```
-
-After that, every push to the repository's main branch redeploys automatically, and other branches get preview URLs.
-
-## Configuration
-
-Nothing needs to be configured in Vercel. All settings are in the code:
-
-| Setting                     | Where          | Current value                         |
-|-----------------------------|----------------|---------------------------------------|
-| Supabase project + key      | `lib/db.js`    | `tbjzjyqyepobswuxmzbk`, publishable key |
-| Time zone (daily reset)     | `lib/app.js`   | `Asia/Kolkata`                        |
-| Allowed email domain        | `lib/app.js`   | none (any email)                      |
+| Setting | Where |
+|---|---|
+| Supabase project + key | `lib/db.js` |
+| Time zone (daily reset), roll-number rule | `lib/app.js` |
+| Algorithm thresholds | top of `lib/consensus.js` |
 
 ## Run locally
 
@@ -63,14 +77,15 @@ Requires Node.js 22.
 
 ```bash
 npm install
-npm run dev                                     # http://localhost:3000, uses the Supabase project
-TEST_DATABASE_URL='postgresql://...' npm test   # tests schema.sql; use a throwaway Postgres, not production
+npm run dev -- --local   # http://localhost:3000 with an in-memory database, no Supabase needed
+npm run dev              # same, against the real Supabase project
+npm test                 # algorithm tests + schema.sql tests (on an in-process Postgres)
 ```
 
-`vercel dev` also works if you have the Vercel CLI.
+To test `schema.sql` against a real Postgres instead: `TEST_DATABASE_URL='postgresql://...' npm test` (use a throwaway database).
 
-## Notes
+## A funnier prof photo
 
-- Signing in with only an email confirms nothing, so anyone could type in someone else's address. That's acceptable for a class joke. The mode also keeps one prankster from moving the total.
-- The cookie just remembers which email you typed. Signing it wouldn't add any protection, since there's no password, so there's no secret to set up.
-- The allowed email domain is checked by the Vercel functions only. Someone who calls the Supabase functions directly with the public key can skip it, though they still can't read the data or change more than one tap at a time.
+If you want to turn the photo into a meme poster, try this prompt with an image model:
+
+> Turn this professor's photo into an affectionate, cartoonish meme poster: he stands at a lecture podium in a superhero cape, the chalkboard behind him completely filled with the words "PART OF IT" written over and over, a speech bubble saying "and this is… part of it", students in the foreground holding up glowing tally counters. Bright comic-book style, halftone dots, bold outlines, friendly not mocking, no text other than "PART OF IT".
