@@ -110,13 +110,18 @@ as $$
 $$;
 
 -- Today's distribution: each count, how many students have it, and their emails.
+-- Only today (give or take a day for time zones), so past days' emails stay private.
 create or replace function public.poi_distribution(p_day date)
 returns table (count integer, students integer, emails text[])
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
 as $$
+#variable_conflict use_column
+begin
+  perform public.poi_assert_today(p_day);
+  return query
   select c.count,
          count(*)::integer,
          array_agg(c.email order by c.email)
@@ -124,6 +129,7 @@ as $$
    where c.day = p_day
    group by c.count
    order by c.count desc;
+end;
 $$;
 
 revoke execute on function public.poi_assert_today(date) from public, anon, authenticated;
