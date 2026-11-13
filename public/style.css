@@ -74,3 +74,18 @@ table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
 th, td { text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--border); }
 th { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
 td:nth-child(2), td:nth-child(3), th:nth-child(2), th:nth-child(3) { text-align: right; font-variant-numeric: tabular-nums; }
+
+.hint { margin: -8px 0 16px; color: var(--muted); font-size: 0.85rem; }
+.dist { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.dist-row { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); }
+.dist-row.is-mode { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.dist-head { display: grid; grid-template-columns: 2.5rem 1fr auto; align-items: center; gap: 10px; }
+.dist-count { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+.is-mode .dist-count { color: var(--accent); }
+.dist-bar { height: 10px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.dist-bar span { display: block; height: 100%; border-radius: inherit; background: var(--muted); }
+.is-mode .dist-bar span { background: var(--accent); }
+.dist-n { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+.dist-emails { list-style: none; margin: 8px 0 0; padding: 0 0 0 calc(2.5rem + 10px); display: flex; flex-wrap: wrap; gap: 6px; }
+.dist-emails li { font-size: 0.78rem; padding: 3px 8px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); word-break: break-all; }
+.dist-emails li.me { font-weight: 700; border-color: var(--accent); }

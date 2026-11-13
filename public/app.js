@@ -26,6 +26,8 @@ function render(s) {
     $('mine').textContent = s.myCount;
   }
 
+  renderDistribution(s);
+
   $('history-view').hidden = s.history.length === 0;
   $('history').innerHTML = '';
   for (const h of s.history) {
@@ -36,6 +38,47 @@ function render(s) {
       tr.appendChild(td);
     }
     $('history').appendChild(tr);
+  }
+}
+
+// Today's distribution: one row per count, with a bar sized by how many
+// students have that count and the emails underneath.
+function renderDistribution(s) {
+  const dist = s.distribution || [];
+  $('dist-view').hidden = dist.length === 0;
+  const list = $('dist');
+  list.innerHTML = '';
+  const most = Math.max(1, ...dist.map((d) => d.students));
+  for (const d of dist) {
+    const li = document.createElement('li');
+    li.className = 'dist-row' + (d.count === s.mode ? ' is-mode' : '');
+
+    const head = document.createElement('div');
+    head.className = 'dist-head';
+    const count = document.createElement('span');
+    count.className = 'dist-count';
+    count.textContent = d.count;
+    const bar = document.createElement('span');
+    bar.className = 'dist-bar';
+    const fill = document.createElement('span');
+    fill.style.width = `${(d.students / most) * 100}%`;
+    bar.appendChild(fill);
+    const n = document.createElement('span');
+    n.className = 'dist-n';
+    n.textContent = `${d.students} ${d.students === 1 ? 'student' : 'students'}${d.count === s.mode ? ' · mode' : ''}`;
+    head.append(count, bar, n);
+
+    const emails = document.createElement('ul');
+    emails.className = 'dist-emails';
+    for (const e of d.emails) {
+      const chip = document.createElement('li');
+      chip.textContent = e;
+      if (e === s.email) chip.className = 'me';
+      emails.appendChild(chip);
+    }
+
+    li.append(head, emails);
+    list.appendChild(li);
   }
 }
 

@@ -5,6 +5,7 @@ Our professor says "part of it" a lot. This app lets the class keep count.
 - Students sign in with just their email. There's no password.
 - Each student taps **He said it!** every time they hear the phrase. Each student has their own count.
 - The big number at the top is the **mode** of all students' counts for today, meaning the count the most students agree on. If there's a tie, the higher value wins, because students who show up late usually have lower counts.
+- Below the counter, **today's distribution** lists every count, how many students have it, and their emails.
 - Counts start over each day (one lecture = one day). Totals from past lectures show up in a history table.
 - The page updates every 3 seconds, so everyone sees the class total change live.
 
@@ -31,7 +32,7 @@ vercel.json       Vercel config
 
 Open the Supabase dashboard and go to **SQL Editor → New query**. Paste in the contents of [`supabase/schema.sql`](supabase/schema.sql) and click **Run**. Running it again later does no harm.
 
-This creates the table and four small functions. The app uses only those functions, so the public key can't read students' emails or change counts directly. It can only add or undo one tap for an email, and only for today. Students' counts appear in **Table Editor → part_of_it_counts**.
+This creates the table and five small functions. The app uses only those functions, so the public key can't change counts directly. It can only add or undo one tap for an email, and only for today. It can also read today's distribution, which includes students' emails, because the page shows that to everyone. Students' counts appear in **Table Editor → part_of_it_counts**.
 
 ## 2. Deploy to Vercel
 
