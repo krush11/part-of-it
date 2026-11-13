@@ -4,8 +4,8 @@
 -- The app talks to Supabase with the public (publishable) key, so the table
 -- itself is locked away from that key. Students can only go through the
 -- functions below, which can add or remove one tap for an email and read the
--- class totals. They can't list other students' emails or set arbitrary
--- counts.
+-- class totals and today's distribution (which lists who has which count).
+-- They can't set arbitrary counts or read past days' emails.
 
 create table if not exists public.part_of_it_counts (
   email      text        not null
@@ -109,6 +109,23 @@ as $$
    limit least(greatest(coalesce(p_limit, 31), 1), 60);
 $$;
 
+-- Today's distribution: each count, how many students have it, and their emails.
+create or replace function public.poi_distribution(p_day date)
+returns table (count integer, students integer, emails text[])
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select c.count,
+         count(*)::integer,
+         array_agg(c.email order by c.email)
+    from public.part_of_it_counts c
+   where c.day = p_day
+   group by c.count
+   order by c.count desc;
+$$;
+
 revoke execute on function public.poi_assert_today(date) from public, anon, authenticated;
 revoke execute on function public.poi_join(text, date) from public;
 revoke execute on function public.poi_increment(text, date) from public;
@@ -118,3 +135,5 @@ grant execute on function public.poi_join(text, date) to anon, authenticated;
 grant execute on function public.poi_increment(text, date) to anon, authenticated;
 grant execute on function public.poi_decrement(text, date) to anon, authenticated;
 grant execute on function public.poi_daily_modes(date, integer) to anon, authenticated;
+revoke execute on function public.poi_distribution(date) from public;
+grant execute on function public.poi_distribution(date) to anon, authenticated;
