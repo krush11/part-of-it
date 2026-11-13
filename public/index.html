@@ -9,8 +9,8 @@
 <body>
   <header class="hero">
     <p class="label">Today the professor has said <q>part of it</q></p>
-    <p class="total"><span id="mode">0</span> <span class="times">times</span></p>
-    <p class="meta">Mode of <span id="students">0</span> students' counts · <span id="date"></span></p>
+    <p class="total"><span id="total">0</span> <span class="times">times</span></p>
+    <p class="meta"><span id="date"></span> · <span id="active">0</span> counting · each one confirmed by <span id="quorum">2</span>+ students tapping together</p>
   </header>
 
   <main>
@@ -32,22 +32,14 @@
         <span>He said it!</span>
         <small>+1</small>
       </button>
-      <p class="mine">Your count today: <strong id="mine">0</strong></p>
+      <p class="mine">Your taps today: <strong id="mine">0</strong></p>
       <button id="dec" class="link">Oops, undo one</button>
     </section>
 
     <section id="dist-view" class="card" hidden>
-      <h2>Today's distribution</h2>
-      <p class="hint">Each count and who has it. The most common count is the class total.</p>
+      <h2>Today's taps</h2>
+      <p class="hint">How many times each student tapped today. The total above only counts moments when several students tapped within a few seconds of each other, so solo or spam taps don't change it.</p>
       <ol id="dist" class="dist"></ol>
-    </section>
-
-    <section id="history-view" class="card" hidden>
-      <h2>Past lectures</h2>
-      <table>
-        <thead><tr><th>Date</th><th>Count (mode)</th><th>Students</th></tr></thead>
-        <tbody id="history"></tbody>
-      </table>
     </section>
   </main>
 

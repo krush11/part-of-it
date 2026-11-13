@@ -12,8 +12,9 @@ async function api(path, options = {}) {
 }
 
 function render(s) {
-  $('mode').textContent = s.mode;
-  $('students').textContent = s.students;
+  $('total').textContent = s.total;
+  $('active').textContent = s.active;
+  $('quorum').textContent = s.quorum;
   $('date').textContent = new Date(s.date + 'T12:00:00').toLocaleDateString(undefined, {
     weekday: 'short', month: 'short', day: 'numeric',
   });
@@ -27,18 +28,6 @@ function render(s) {
   }
 
   renderDistribution(s);
-
-  $('history-view').hidden = s.history.length === 0;
-  $('history').innerHTML = '';
-  for (const h of s.history) {
-    const tr = document.createElement('tr');
-    for (const v of [h.date, h.mode, h.students]) {
-      const td = document.createElement('td');
-      td.textContent = v;
-      tr.appendChild(td);
-    }
-    $('history').appendChild(tr);
-  }
 }
 
 // Today's distribution: one row per count, with a bar sized by how many
@@ -51,7 +40,7 @@ function renderDistribution(s) {
   const most = Math.max(1, ...dist.map((d) => d.students));
   for (const d of dist) {
     const li = document.createElement('li');
-    li.className = 'dist-row' + (d.count === s.mode ? ' is-mode' : '');
+    li.className = 'dist-row' + (d.emails.includes(s.email) ? ' is-me' : '');
 
     const head = document.createElement('div');
     head.className = 'dist-head';
@@ -65,7 +54,7 @@ function renderDistribution(s) {
     bar.appendChild(fill);
     const n = document.createElement('span');
     n.className = 'dist-n';
-    n.textContent = `${d.students} ${d.students === 1 ? 'student' : 'students'}${d.count === s.mode ? ' · mode' : ''}`;
+    n.textContent = `${d.students} ${d.students === 1 ? 'student' : 'students'}`;
     head.append(count, bar, n);
 
     const emails = document.createElement('ul');
