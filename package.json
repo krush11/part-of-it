@@ -2,9 +2,8 @@
   "name": "part-of-it-counter",
   "version": "1.0.0",
   "description": "Crowd-sourced counter for how many times the professor says \"part of it\".",
-  "main": "server.js",
   "scripts": {
-    "start": "node server.js",
+    "dev": "node dev-server.js",
     "test": "node --test"
   },
   "engines": {

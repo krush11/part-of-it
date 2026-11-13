@@ -8,26 +8,56 @@ Our professor says "part of it" a lot. This app lets the class keep count.
 - Counts start over each day (one lecture = one day). Totals from past lectures show up in a history table.
 - The page updates every 3 seconds, so everyone sees the class total change live.
 
-Counts are saved in **Supabase** (project `tbjzjyqyepobswuxmzbk`) in a table called `part_of_it_counts`, with one row per student per day. The project URL and the publishable key are written directly in `db.js`. The publishable key is designed to be public, so that's safe.
+It runs on **Vercel**. Counts are saved in **Supabase** (project `tbjzjyqyepobswuxmzbk`) in a table called `part_of_it_counts`, with one row per student per day. The project URL and the publishable key are written directly in `lib/db.js`. The publishable key is designed to be public, so that's safe.
 
-## Set up Supabase (one time)
+## Project layout
+
+```
+public/           the web page (served as static files)
+api/              one Vercel serverless function per endpoint
+  state.js          GET  current counts
+  login.js          POST {email}
+  logout.js         POST
+  increment.js      POST +1 for the signed-in student
+  decrement.js      POST undo one
+lib/app.js        shared request handling used by every api/ file
+lib/db.js         Supabase connection (project URL + publishable key)
+supabase/schema.sql   database setup, run once in Supabase
+dev-server.js     runs the same thing locally without Vercel
+vercel.json       Vercel config
+```
+
+## 1. Set up Supabase (one time)
 
 Open the Supabase dashboard and go to **SQL Editor → New query**. Paste in the contents of [`supabase/schema.sql`](supabase/schema.sql) and click **Run**. Running it again later does no harm.
 
 This creates the table and four small functions. The app uses only those functions, so the public key can't read students' emails or change counts directly. It can only add or undo one tap for an email, and only for today. Students' counts appear in **Table Editor → part_of_it_counts**.
 
-## Deploy to Heroku
+## 2. Deploy to Vercel
+
+**From the dashboard:** go to [vercel.com/new](https://vercel.com/new), import this GitHub repository, and leave the framework preset as **Other** with no build command. Under **Environment Variables**, add `TIMEZONE` (see below), then click **Deploy**.
+
+**Or from the command line:**
 
 ```bash
-heroku create your-app-name
-heroku config:set SESSION_SECRET="$(openssl rand -hex 32)"
-heroku config:set TIMEZONE=America/New_York          # your class's time zone
-heroku config:set ALLOWED_DOMAIN=youruniversity.edu  # optional
-git push heroku main    # or: git push heroku your-branch:main
-heroku open
+npm i -g vercel
+vercel                                  # first deploy, links the project
+vercel env add TIMEZONE production      # e.g. America/New_York
+vercel --prod
 ```
 
-The `Procfile` tells Heroku to run `node server.js`. Heroku sets `PORT` itself.
+After that, every push to the repository's main branch redeploys automatically, and other branches get preview URLs.
+
+## Configuration (Vercel environment variables)
+
+Both are optional, and nothing secret needs to be configured.
+
+| Variable         | Purpose                                                                     |
+|------------------|-----------------------------------------------------------------------------|
+| `TIMEZONE`       | Decides when a new day starts, e.g. `America/New_York`. Vercel runs on UTC, so without this the count resets at UTC midnight |
+| `ALLOWED_DOMAIN` | Only allow emails from this domain, e.g. `university.edu`                  |
+
+Changing an environment variable takes effect on the next deployment.
 
 ## Run locally
 
@@ -35,19 +65,14 @@ Requires Node.js 22.
 
 ```bash
 npm install
-npm start                                      # http://localhost:3000, uses the Supabase project
-TEST_DATABASE_URL='postgresql://...' npm test  # tests schema.sql; use a throwaway Postgres, not production
+npm run dev                                     # http://localhost:3000, uses the Supabase project
+TEST_DATABASE_URL='postgresql://...' npm test   # tests schema.sql; use a throwaway Postgres, not production
 ```
 
-## Configuration (environment variables)
-
-| Variable         | Required | Purpose                                                       |
-|------------------|----------|---------------------------------------------------------------|
-| `SESSION_SECRET` | yes      | Secret used to sign login cookies. Without it, everyone gets logged out whenever the app restarts, which on Heroku happens at least once a day |
-| `TIMEZONE`       | no       | Decides when a new day starts, e.g. `America/New_York` (Heroku defaults to UTC) |
-| `ALLOWED_DOMAIN` | no       | Only allow emails from this domain, e.g. `university.edu`     |
+`vercel dev` also works if you have the Vercel CLI.
 
 ## Notes
 
 - Signing in with only an email confirms nothing, so anyone could type in someone else's address. That's acceptable for a class joke. The mode also keeps one prankster from moving the total.
-- `ALLOWED_DOMAIN` is checked by this server only. Someone who calls the Supabase functions directly with the public key can skip it, though they still can't read the data or change more than one tap at a time.
+- The cookie just remembers which email you typed. Signing it wouldn't add any protection, since there's no password, so there's no secret to set up.
+- `ALLOWED_DOMAIN` is checked by the Vercel functions only. Someone who calls the Supabase functions directly with the public key can skip it, though they still can't read the data or change more than one tap at a time.
