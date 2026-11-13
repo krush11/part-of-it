@@ -112,6 +112,7 @@ a { color: var(--grape); }
   padding: 6px 0;
   letter-spacing: 0.04em;
 }
+.roll input::placeholder { color: rgba(22, 22, 29, 0.3); font-weight: 600; }
 .roll .domain { color: var(--muted); font-weight: 600; flex: 1; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .roll .status { font-size: 1.4rem; }
 .shake { animation: shake 0.4s; }

@@ -141,8 +141,7 @@ const roll = $('roll');
 let signingIn = false;
 
 roll.addEventListener('input', async () => {
-  let v = roll.value.toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (!v.startsWith('b')) v = 'b' + v.replace(/^b*/, '');
+  const v = roll.value.toLowerCase().replace(/[^a-z0-9]/g, '');
   if (v !== roll.value) roll.value = v;
   $('login-error').textContent = '';
 
@@ -173,7 +172,7 @@ roll.addEventListener('input', async () => {
 $('logout').addEventListener('click', async () => {
   try {
     render(await api('/api/logout', { method: 'POST' }));
-    roll.value = 'b';
+    roll.value = '';
     $('roll-status').textContent = '🤔';
     roll.focus();
   } catch {
