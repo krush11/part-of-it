@@ -35,29 +35,26 @@ This creates the table and four small functions. The app uses only those functio
 
 ## 2. Deploy to Vercel
 
-**From the dashboard:** go to [vercel.com/new](https://vercel.com/new), import this GitHub repository, and leave the framework preset as **Other** with no build command. Under **Environment Variables**, add `TIMEZONE` (see below), then click **Deploy**.
+**From the dashboard:** go to [vercel.com/new](https://vercel.com/new), import this GitHub repository, leave the framework preset as **Other** with no build command, and click **Deploy**.
 
 **Or from the command line:**
 
 ```bash
 npm i -g vercel
-vercel                                  # first deploy, links the project
-vercel env add TIMEZONE production      # e.g. America/New_York
 vercel --prod
 ```
 
 After that, every push to the repository's main branch redeploys automatically, and other branches get preview URLs.
 
-## Configuration (Vercel environment variables)
+## Configuration
 
-Both are optional, and nothing secret needs to be configured.
+Nothing needs to be configured in Vercel. All settings are in the code:
 
-| Variable         | Purpose                                                                     |
-|------------------|-----------------------------------------------------------------------------|
-| `TIMEZONE`       | Decides when a new day starts, e.g. `America/New_York`. Vercel runs on UTC, so without this the count resets at UTC midnight |
-| `ALLOWED_DOMAIN` | Only allow emails from this domain, e.g. `university.edu`                  |
-
-Changing an environment variable takes effect on the next deployment.
+| Setting                     | Where          | Current value                         |
+|-----------------------------|----------------|---------------------------------------|
+| Supabase project + key      | `lib/db.js`    | `tbjzjyqyepobswuxmzbk`, publishable key |
+| Time zone (daily reset)     | `lib/app.js`   | `Asia/Kolkata`                        |
+| Allowed email domain        | `lib/app.js`   | none (any email)                      |
 
 ## Run locally
 
@@ -75,4 +72,4 @@ TEST_DATABASE_URL='postgresql://...' npm test   # tests schema.sql; use a throwa
 
 - Signing in with only an email confirms nothing, so anyone could type in someone else's address. That's acceptable for a class joke. The mode also keeps one prankster from moving the total.
 - The cookie just remembers which email you typed. Signing it wouldn't add any protection, since there's no password, so there's no secret to set up.
-- `ALLOWED_DOMAIN` is checked by the Vercel functions only. Someone who calls the Supabase functions directly with the public key can skip it, though they still can't read the data or change more than one tap at a time.
+- The allowed email domain is checked by the Vercel functions only. Someone who calls the Supabase functions directly with the public key can skip it, though they still can't read the data or change more than one tap at a time.
