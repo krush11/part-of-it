@@ -55,7 +55,13 @@ dev-server.js         runs it locally without Vercel
 
 ## Set up Supabase (one time, and again after schema changes)
 
-Supabase dashboard → **SQL Editor → New query**, paste [`supabase/schema.sql`](supabase/schema.sql), **Run**. Safe to re-run.
+Either in the dashboard: **SQL Editor → New query**, paste [`supabase/schema.sql`](supabase/schema.sql), **Run**. Or from the terminal with the Supabase CLI (log in once with `npx supabase login`; on Windows PowerShell use `npx.cmd`):
+
+```bash
+npx supabase db query --remote=tbjzjyqyepobswuxmzbk -f supabase/schema.sql --yes
+```
+
+Safe to re-run. The same command with `--read-only "select ..."` runs ad-hoc queries, and without `--read-only` it can clear tables (`delete from public.poi_taps`).
 
 The app only ever calls the functions this creates. With the public key you can record one tap for today, undo your own last tap, and read *anonymous* tap timings. You can't read emails, write other days, or set counts. The roll-number rule is enforced by the database too.
 
