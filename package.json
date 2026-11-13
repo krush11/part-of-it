@@ -1,0 +1,19 @@
+{
+  "name": "part-of-it-counter",
+  "version": "1.0.0",
+  "description": "Crowd-sourced counter for how many times the professor says \"part of it\".",
+  "scripts": {
+    "dev": "node dev-server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "2.119.0"
+  },
+  "devDependencies": {
+    "pg": "8.23.1"
+  }
+}
