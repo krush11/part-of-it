@@ -8,7 +8,10 @@
     "test": "node --test"
   },
   "engines": {
-    "node": ">=18"
+    "node": "22.x"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "pg": "8.23.1"
+  }
 }
