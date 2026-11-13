@@ -158,6 +158,48 @@ button.link.oops { display: block; margin: 10px auto 0; color: var(--muted); }
 .ears .stats { font-size: 1.05rem; }
 .ears .hint { color: var(--ink); opacity: 0.8; }
 
+/* ---------- target bid ---------- */
+.bid { background: var(--sun); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
+.chip {
+  font: inherit;
+  font-weight: 800;
+  min-width: 52px;
+  padding: 8px 10px;
+  background: var(--paper);
+  border: var(--border);
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--ink);
+  cursor: pointer;
+  transition: transform 0.06s, box-shadow 0.06s;
+}
+.chip:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.chip.on { background: var(--pop); color: #fff; transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.lock {
+  display: block;
+  width: 100%;
+  font-family: var(--display);
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+  padding: 12px;
+  background: var(--ink);
+  color: var(--sun);
+  border: var(--border);
+  border-radius: 14px;
+  box-shadow: 4px 4px 0 var(--pop);
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.lock:disabled { opacity: 0.6; cursor: default; }
+.bid-status { font-weight: 700; margin: 0 0 10px; }
+.bid-dist { list-style: none; margin: 0; padding: 0; }
+.bid-dist li { display: grid; grid-template-columns: 7.5ch 1fr auto; gap: 10px; align-items: center; padding: 3px 0; font-size: 0.95rem; }
+.bid-dist .bid-v { font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; }
+.bid-dist .bid-bar { height: 10px; border: 2px solid var(--ink); border-radius: 999px; background: var(--paper); overflow: hidden; }
+.bid-dist .bid-bar span { display: block; height: 100%; background: var(--sky); }
+.bid-dist li.mine .bid-bar span { background: var(--pop); }
+.bid-dist .bid-n { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+
 /* ---------- feed ---------- */
 .feed { list-style: none; margin: 0; padding: 0; }
 .feed li {

@@ -38,6 +38,16 @@
       </button>
       <button id="untap" class="link oops" hidden>oops, that wasn't it 🙈</button>
 
+      <!-- Target bid: one pick per day, locked once placed -->
+      <section id="bid-view" class="card bid">
+        <h2 id="bid-title">🎯 Call your shot</h2>
+        <p class="hint" id="bid-hint">How many times today? Pick a bracket. No take-backs.</p>
+        <div id="bid-chips" class="chips" role="radiogroup" aria-label="Your prediction"></div>
+        <button id="bid-lock" class="lock" hidden>LOCK IT IN 🔒</button>
+        <p id="bid-status" class="bid-status" hidden></p>
+        <ol id="bid-dist" class="bid-dist"></ol>
+      </section>
+
       <section class="card ears">
         <h2 id="title">👂 Fresh Ears</h2>
         <p class="stats"><strong id="my-taps">0</strong> taps · <strong id="my-hits">0</strong> confirmed · <strong id="my-acc">–</strong> accuracy</p>

@@ -154,6 +154,76 @@ as $$
 $$;
 
 -- ============================================================================
+-- Target bids: before (or during) the lecture each student calls how many
+-- times he'll say it today, as a bracket (0–9, 10–19 … 140–149, 150+). The
+-- bracket's lower bound is stored. One bid per student per day, and it can't
+-- be changed once placed.
+-- ============================================================================
+
+create table if not exists public.poi_bids (
+  email  text        not null
+         check (email = lower(email)
+                and email ~ '^b[il]?260(0[1-9]|[1-5][0-9]|60)@astra\.xlri\.ac\.in$'),
+  day    date        not null,
+  bid    integer     not null check (bid between 0 and 150 and bid % 10 = 0),
+  at     timestamptz not null default now(),
+  primary key (email, day)
+);
+
+alter table public.poi_bids enable row level security;
+revoke all on table public.poi_bids from anon, authenticated;
+
+-- Place a bid. If the student already has one today, that one stays and is
+-- returned (no take-backs). Returns the bid on record.
+create or replace function public.poi_bid(p_email text, p_day date, p_bid integer)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_email text := lower(trim(p_email));
+  result integer;
+begin
+  perform public.poi_assert_today(p_day);
+  insert into public.poi_bids (email, day, bid) values (v_email, p_day, p_bid)
+  on conflict (email, day) do nothing;
+  select b.bid into result from public.poi_bids b where b.email = v_email and b.day = p_day;
+  return result;
+end;
+$$;
+
+-- The caller's bid for a day, or null.
+create or replace function public.poi_my_bid(p_email text, p_day date)
+returns integer
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select b.bid from public.poi_bids b where b.email = lower(trim(p_email)) and b.day = p_day;
+$$;
+
+-- Anonymous distribution of a day's bids: [[bid, students], ...] ascending.
+create or replace function public.poi_bids_for_day(p_day date)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(jsonb_build_array(x.bid, x.n) order by x.bid), '[]'::jsonb)
+  from (select b.bid, count(*)::integer as n from public.poi_bids b where b.day = p_day group by b.bid) x;
+$$;
+
+revoke execute on function public.poi_bid(text, date, integer) from public;
+revoke execute on function public.poi_my_bid(text, date) from public;
+revoke execute on function public.poi_bids_for_day(date) from public;
+grant execute on function public.poi_bid(text, date, integer) to anon, authenticated;
+grant execute on function public.poi_my_bid(text, date) to anon, authenticated;
+grant execute on function public.poi_bids_for_day(date) to anon, authenticated;
+
+-- ============================================================================
 -- Legacy: before the tap-based counter, each student kept their own count and
 -- the class number was the mode. The table is kept so old days still show in
 -- history; nothing writes to it any more.

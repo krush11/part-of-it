@@ -90,6 +90,8 @@ function render(s) {
     setTimeout(() => $('roll').focus(), 50);
   }
 
+  if (signedIn) renderBid(s);
+
   // Live feed
   $('feed-view').hidden = s.feed.length === 0;
   const feed = $('feed');
@@ -121,6 +123,98 @@ function render(s) {
     hist.appendChild(tr);
   }
 }
+
+// ---------- target bid ----------
+let pickedBid = null;
+
+// A bid is a bracket: 0–9, 10–19 … 140–149, 150+. We store its lower bound.
+function rangeLabel(v, max, step) {
+  return v >= max ? `${max}+` : `${v}–${v + step - 1}`;
+}
+
+function bidStatus(bid, count, max, step) {
+  const label = rangeLabel(bid, max, step);
+  if (count < bid) return `${count} so far · ${bid - count} more to reach your ${label}.`;
+  if (bid >= max || count < bid + step) return `🎯 ${count} so far. You're inside your ${label}. Don't breathe.`;
+  return `💀 He blew past your ${label}. ${count} and counting. You underestimated him.`;
+}
+
+function renderBid(s) {
+  const { max, step } = s.bidOptions || { max: 150, step: 10 };
+  const chips = $('bid-chips');
+  const locked = s.myBid !== null && s.myBid !== undefined;
+
+  if (locked) {
+    $('bid-title').textContent = `🎯 Your call: ${rangeLabel(s.myBid, max, step)} · locked 🔒`;
+    $('bid-hint').hidden = true;
+    chips.hidden = true;
+    $('bid-lock').hidden = true;
+    $('bid-status').hidden = false;
+    $('bid-status').textContent = bidStatus(s.myBid, s.count, max, step);
+  } else {
+    $('bid-title').textContent = '🎯 Call your shot';
+    $('bid-hint').hidden = false;
+    $('bid-status').hidden = true;
+    chips.hidden = false;
+    if (chips.childElementCount === 0) {
+      for (let v = 0; v <= max; v += step) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip';
+        b.textContent = rangeLabel(v, max, step);
+        b.dataset.v = v;
+        b.setAttribute('role', 'radio');
+        b.addEventListener('click', () => {
+          pickedBid = v;
+          for (const c of chips.children) c.classList.toggle('on', Number(c.dataset.v) === v);
+          $('bid-lock').hidden = false;
+          $('bid-lock').textContent = `LOCK IN ${rangeLabel(v, max, step)} 🔒`;
+        });
+        chips.appendChild(b);
+      }
+    }
+    $('bid-lock').hidden = pickedBid === null;
+  }
+
+  // Anonymous spread of everyone's calls.
+  const dist = $('bid-dist');
+  dist.innerHTML = '';
+  const bids = s.bids || [];
+  const most = Math.max(1, ...bids.map((b) => b.students));
+  for (const b of bids) {
+    const li = document.createElement('li');
+    if (locked && b.bid === s.myBid) li.className = 'mine';
+    const v = document.createElement('span');
+    v.className = 'bid-v';
+    v.textContent = rangeLabel(b.bid, max, step);
+    const bar = document.createElement('span');
+    bar.className = 'bid-bar';
+    const fill = document.createElement('span');
+    fill.style.width = `${(b.students / most) * 100}%`;
+    bar.appendChild(fill);
+    const n = document.createElement('span');
+    n.className = 'bid-n';
+    n.textContent = b.students === 1 ? '1 call' : `${b.students} calls`;
+    li.append(v, bar, n);
+    dist.appendChild(li);
+  }
+}
+
+$('bid-lock').addEventListener('click', async () => {
+  if (pickedBid === null) return;
+  const v = pickedBid;
+  $('bid-lock').disabled = true;
+  try {
+    const s = await api('/api/bid', { method: 'POST', body: JSON.stringify({ bid: v }) });
+    pickedBid = null;
+    if (navigator.vibrate) navigator.vibrate(20);
+    render(s);
+  } catch (err) {
+    $('bid-hint').textContent = err.message;
+  } finally {
+    $('bid-lock').disabled = false;
+  }
+});
 
 async function refresh() {
   try {
